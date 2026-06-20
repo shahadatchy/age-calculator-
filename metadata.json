@@ -1,0 +1,6 @@
+{
+  "name": "Age Calculator",
+  "description": "Calculate exact age in years, months, and days with voice command entries, beautiful interactive avatars, multichart statistics, SEO templates, and translation features.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
