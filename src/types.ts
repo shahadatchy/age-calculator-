@@ -1,4 +1,4 @@
-export type LanguageCode = 'en' | 'es' | 'fr' | 'de' | 'hi' | 'ja' | 'bn' | 'ar';
+export type LanguageCode = 'en' | 'es' | 'fr' | 'de' | 'hi' | 'ja' | 'bn' | 'ar' | 'pt' | 'ru' | 'zh' | 'it' | 'tr' | 'ko' | 'vi' | 'id' | 'nl' | 'pl';
 
 export interface TranslationDict {
   title: string;

@@ -27,6 +27,7 @@ import { translations, faqs } from './data';
 import { calculatePreciseAge, parseSpokenDOB } from './utils';
 import AgeAvatar from './components/AgeAvatar';
 import AdSenseBlock from './components/AdSenseBlock';
+import { regionsList, lifeSuggestions } from './regions';
 
 export default function App() {
   // Localization State
@@ -37,6 +38,106 @@ export default function App() {
   const [dob, setDob] = useState<string>('');
   const [birthTime, setBirthTime] = useState<string>('00:00');
   const [gender, setGender] = useState<Gender>('neutral');
+
+  // Life Expectancy & Region selection states
+  const [selectedRegion, setSelectedRegion] = useState<string>('global');
+  const [expectancyLevel, setExpectancyLevel] = useState<number>(73.3);
+  const [activeSuggestionTab, setActiveSuggestionTab] = useState<'health' | 'adventure' | 'connections' | 'mind'>('health');
+  const [checkedSuggestions, setCheckedSuggestions] = useState<string[]>([]);
+
+  // Year, Month, Day separate picker states for easier custom entry
+  const [selectedYear, setSelectedYear] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedDay, setSelectedDay] = useState<string>('');
+
+  // Year list generator (from current year down to 1900)
+  const currentYear = new Date().getFullYear();
+  const yearsList = Array.from({ length: currentYear - 1900 + 1 }, (_, i) => (currentYear - i).toString());
+
+  // Function to dynamically parse translated localized month names using built-in localization
+  const getMonthNames = (): string[] => {
+    try {
+      const formatter = new Intl.DateTimeFormat(lang, { month: 'long' });
+      return Array.from({ length: 12 }, (_, i) => formatter.format(new Date(2000, i, 1)));
+    } catch {
+      return ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    }
+  };
+
+  // Helper to dynamically calculate total days in a specified year and month (handles leap years too)
+  const getDaysInMonth = (yearStr: string, monthStr: string): number => {
+    const y = parseInt(yearStr);
+    const m = parseInt(monthStr);
+    if (!isNaN(y) && !isNaN(m)) {
+      return new Date(y, m, 0).getDate();
+    }
+    return 31;
+  };
+
+  // Keep separate dropdown selects synced representation with the master dob string
+  useEffect(() => {
+    if (dob) {
+      const parts = dob.split('-');
+      if (parts.length === 3) {
+        setSelectedYear(parts[0]);
+        setSelectedMonth(parts[1]);
+        setSelectedDay(parts[2]);
+      }
+    } else {
+      setSelectedYear('');
+      setSelectedMonth('');
+      setSelectedDay('');
+    }
+  }, [dob]);
+
+  // Update central dob state whenever Year, Month, or Day is selected manually
+  const handleDropdownDateChange = (y: string, m: string, d: string) => {
+    if (y && m && d) {
+      const formattedMonth = m.padStart(2, '0');
+      const formattedDay = d.padStart(2, '0');
+      setDob(`${y}-${formattedMonth}-${formattedDay}`);
+      setErrorText('');
+    } else {
+      setDob('');
+    }
+  };
+
+  // Geolocation/User Browser Preferred Language Auto-Detector
+  useEffect(() => {
+    try {
+      const systemLanguages = navigator.languages || [navigator.language];
+      const supportMap: Record<string, LanguageCode> = {
+        'pt': 'pt', 'ru': 'ru', 'zh': 'zh', 'it': 'it', 'tr': 'tr',
+        'ko': 'ko', 'vi': 'vi', 'id': 'id', 'nl': 'nl', 'pl': 'pl',
+        'en': 'en', 'es': 'es', 'fr': 'fr', 'de': 'de', 'hi': 'hi',
+        'ja': 'ja', 'bn': 'bn', 'ar': 'ar'
+      };
+
+      for (const locale of systemLanguages) {
+        if (!locale) continue;
+        const cleanLocale = locale.toLowerCase();
+        const baseLang = cleanLocale.split('-')[0];
+        
+        if (supportMap[baseLang]) {
+          setLang(supportMap[baseLang]);
+          console.log(`[Auto-Detect Geo] Matched locale "${locale}" to default app language: "${supportMap[baseLang]}"`);
+          break;
+        }
+      }
+    } catch (e) {
+      console.warn('Geolocation browser language auto-detection failed:', e);
+    }
+  }, []);
+
+  // Sync selected region expectancy with target state representation
+  useEffect(() => {
+    if (selectedRegion !== 'custom') {
+      const match = regionsList.find((r) => r.code === selectedRegion);
+      if (match) {
+        setExpectancyLevel(match.expectancy);
+      }
+    }
+  }, [selectedRegion]);
 
   // Calculation Results
   const [result, setResult] = useState<AgeCalculationResult | null>(null);
@@ -224,7 +325,17 @@ export default function App() {
         hi: 'hi-IN',
         ja: 'ja-JP',
         bn: 'bn-BD',
-        ar: 'ar-SA'
+        ar: 'ar-SA',
+        pt: 'pt-BR',
+        ru: 'ru-RU',
+        zh: 'zh-CN',
+        it: 'it-IT',
+        tr: 'tr-TR',
+        ko: 'ko-KR',
+        vi: 'vi-VN',
+        id: 'id-ID',
+        nl: 'nl-NL',
+        pl: 'pl-PL'
       };
       
       rec.lang = voiceLocales[lang] || 'en-US';
@@ -295,25 +406,81 @@ export default function App() {
     setSpokenText('');
   };
 
-  return (
-    <div id="calculator-application-container" className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 font-sans antialiased text-white flex flex-col justify-between py-8 px-4 sm:px-6 lg:px-8 relative selection:bg-white/20 selection:text-white">
+  // Math for life expectancy & remaining lifespan calculation
+  const getLifespanMetrics = () => {
+    if (!dob) return null;
+    try {
+      const birthDateObj = new Date(dob);
+      const [timeHours, timeMinutes] = birthTime.split(':').map(Number);
+      const birthDateTime = new Date(birthDateObj);
+      birthDateTime.setHours(timeHours || 0, timeMinutes || 0, 0, 0);
+
+      const now = new Date();
+      if (birthDateTime > now) return null;
+
+      // Real calculated age in years
+      const diffMs = now.getTime() - birthDateTime.getTime();
+      const ageTotalYears = diffMs / (365.2425 * 24 * 60 * 60 * 1000);
+
+      const anticipatedLifespanMs = expectancyLevel * 365.2425 * 24 * 60 * 60 * 1000;
+      const demiseDateTime = new Date(birthDateTime.getTime() + anticipatedLifespanMs);
       
-      {/* Decorative Blur Background Orbs */}
-      <div className="absolute top-[20%] left-[10%] w-[25vw] h-[25vw] rounded-full bg-white/5 mix-blend-screen filter blur-[80px] pointer-events-none" />
-      <div className="absolute bottom-[30%] right-[10%] w-[30vw] h-[30vw] rounded-full bg-pink-500/10 mix-blend-screen filter blur-[90px] pointer-events-none" />
-      <div className="absolute top-[45%] right-[20%] w-[20vw] h-[20vw] rounded-full bg-indigo-500/10 mix-blend-screen filter blur-[70px] pointer-events-none" />
+      const msLeft = demiseDateTime.getTime() - now.getTime();
+      const yearsLeftFloating = Math.max(0, msLeft / (365.2425 * 24 * 60 * 60 * 1000));
+      
+      const percentLived = Math.min(100, Math.max(0, (ageTotalYears / expectancyLevel) * 100));
+      const percentLeft = Math.max(0, 100 - percentLived);
+
+      // Breakdown of remaining time
+      const totalDaysLeft = Math.floor(Math.max(0, msLeft / (1000 * 60 * 60 * 24)));
+      const monthsLeft = Math.floor(yearsLeftFloating * 12) % 12;
+      const daysLeft = Math.floor(yearsLeftFloating * 30.437) % 30;
+
+      let era: 'long' | 'medium' | 'short' = 'medium';
+      if (yearsLeftFloating > 35) {
+        era = 'long';
+      } else if (yearsLeftFloating < 15) {
+        era = 'short';
+      } else {
+        era = 'medium';
+      }
+
+      return {
+        yearsLeftFloating,
+        totalDaysLeft,
+        monthsLeft,
+        daysLeft,
+        percentLived,
+        percentLeft,
+        era,
+        isOverExpectancy: msLeft < 0
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const lifespanMetrics = getLifespanMetrics();
+
+  return (
+    <div id="calculator-application-container" className="min-h-screen bg-slate-50 font-sans antialiased text-slate-800 flex flex-col justify-between py-8 px-4 sm:px-6 lg:px-8 relative overflow-hidden selection:bg-indigo-100 selection:text-indigo-900 transition-colors duration-500">
+      
+      {/* iOS 27 Liquid Underlay Orbs */}
+      <div className="absolute top-[5%] left-[-15%] w-[45vw] h-[45vw] rounded-full bg-gradient-to-tr from-pink-400/20 via-purple-300/15 to-transparent filter blur-[100px] pointer-events-none animate-liquid-1" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-gradient-to-br from-cyan-300/25 via-sky-450/20 to-indigo-400/15 filter blur-[120px] pointer-events-none animate-liquid-2" />
+      <div className="absolute top-[35%] right-[10%] w-[35vw] h-[35vw] rounded-full bg-gradient-to-tl from-purple-300/15 via-pink-300/20 to-yellow-200/15 filter blur-[95px] pointer-events-none animate-liquid-3" />
 
       {/* Floating Header area with premium Language bar */}
-      <header className="max-w-5xl mx-auto w-full flex items-center justify-between bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl px-6 py-3 mb-8 relative z-20">
+      <header className="max-w-5xl mx-auto w-full flex items-center justify-between glass-container-liquid rounded-2xl px-6 py-3.5 mb-8 relative z-20 shadow-sm border border-white/60">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-lg shadow-indigo-600/20">
+          <div className="w-9 h-9 rounded-full bg-indigo-600/5 flex items-center justify-center shadow-inner">
             <Calendar className="w-4.5 h-4.5 text-indigo-600 font-bold" />
           </div>
           <div>
-            <h1 className="text-lg sm:text-xl font-display font-black tracking-tight text-white m-0">
+            <h1 className="text-lg sm:text-xl font-display font-black tracking-tight text-slate-900 m-0 leading-none">
               {t.title}
             </h1>
-            <p className="text-[9px] uppercase tracking-wider text-pink-200 font-mono font-bold leading-none">
+            <p className="text-[9px] uppercase tracking-wider text-pink-600 font-mono font-black leading-none mt-1">
               Premium Spec V2.6
             </p>
           </div>
@@ -323,12 +490,12 @@ export default function App() {
         <div className="relative">
           <button
             onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-medium cursor-pointer hover:bg-white/10 hover:border-white/20 transition-all shadow-inner"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/40 border border-white/60 text-xs font-semibold text-slate-700 cursor-pointer hover:bg-white/70 hover:border-slate-300 transition-all shadow-sm"
             aria-label={t.languageSelect}
           >
-            <Globe className="w-3.5 h-3.5 text-sky-400" />
+            <Globe className="w-3.5 h-3.5 text-indigo-600 animate-spin-slow" />
             <span className="uppercase">{lang}</span>
-            <ChevronDown className={`w-3 h-3 transition-transform ${showLanguageDropdown ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-3 h-3 transition-transform text-slate-500 ${showLanguageDropdown ? 'rotate-180' : ''}`} />
           </button>
 
           <AnimatePresence>
@@ -337,18 +504,28 @@ export default function App() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
-                className="absolute right-0 mt-2 w-48 rounded-xl glass-container shadow-2xl p-2 z-50 border border-white/10"
+                className="absolute right-0 mt-2 w-48 rounded-xl glass-container-liquid shadow-2xl p-2 z-50 border border-white/60"
               >
                 <div className="grid grid-cols-1 gap-1">
                   {[
-                    { code: 'en', label: 'English (US)' },
+                    { code: 'en', label: 'English' },
                     { code: 'es', label: 'Español' },
                     { code: 'fr', label: 'Français' },
                     { code: 'de', label: 'Deutsch' },
                     { code: 'hi', label: 'हिन्दी' },
                     { code: 'ja', label: '日本語' },
                     { code: 'bn', label: 'বাংলা' },
-                    { code: 'ar', label: 'العربية' }
+                    { code: 'ar', label: 'العربية' },
+                    { code: 'pt', label: 'Português' },
+                    { code: 'ru', label: 'Русский' },
+                    { code: 'zh', label: '中文 (简体)' },
+                    { code: 'it', label: 'Italiano' },
+                    { code: 'tr', label: 'Türkçe' },
+                    { code: 'ko', label: '한국어' },
+                    { code: 'vi', label: 'Tiếng Việt' },
+                    { code: 'id', label: 'Bahasa Indonesia' },
+                    { code: 'nl', label: 'Nederlands' },
+                    { code: 'pl', label: 'Polski' }
                   ].map((item) => (
                     <button
                       key={item.code}
@@ -360,12 +537,12 @@ export default function App() {
                       }}
                       className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium w-full text-left transition-all cursor-pointer ${
                         lang === item.code 
-                          ? 'bg-sky-500/20 text-sky-200' 
-                          : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                          ? 'bg-indigo-600/10 text-indigo-950 font-bold' 
+                          : 'text-slate-700 hover:bg-white/50 hover:text-slate-950'
                       }`}
                     >
                       <span>{item.label}</span>
-                      {lang === item.code && <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />}
+                      {lang === item.code && <span className="w-1.5 h-1.5 rounded-full bg-indigo-650" />}
                     </button>
                   ))}
                 </div>
@@ -381,18 +558,18 @@ export default function App() {
         {/* Core calculation Widget & Input Card inside single view */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
           
-          {/* Lign 1: Left Input controller card (Glassmorphic slab) */}
-          <section className="lg:col-span-5 bg-white/15 backdrop-blur-lg border border-white/20 rounded-[40px] p-6 sm:p-8 flex flex-col justify-between relative overflow-hidden shadow-2xl">
+          {/* Line 1: Left Input controller card (Glassmorphic slab) */}
+          <section className="lg:col-span-5 glass-container-liquid rounded-[40px] p-6 sm:p-8 flex flex-col justify-between relative overflow-hidden shadow-xl shadow-slate-200/50">
             
             {/* Soft top lighting */}
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent" />
             
             <div>
               <div className="mb-6">
-                <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-white/20 border border-white/30 text-pink-200 uppercase tracking-wider">
+                <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-indigo-55/65 text-indigo-600 border border-indigo-100/50 uppercase tracking-wider font-mono">
                   {lang === 'bn' ? 'অনলাইন টুল' : lang === 'es' ? 'Herramienta gratuita' : 'Global Application'}
                 </span>
-                <p className="text-indigo-100 opacity-90 font-light text-sm mt-4 leading-relaxed">
+                <p className="text-slate-650 font-medium text-sm mt-4 leading-relaxed">
                   {t.subtitle}
                 </p>
               </div>
@@ -402,44 +579,105 @@ export default function App() {
                 
                 {/* Date Selection block */}
                 <div>
-                  <label className="block text-[10px] font-bold tracking-widest text-indigo-200 mb-2 uppercase flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-pink-300" />
+                  <label className="block text-[10px] font-black tracking-widest text-slate-500 mb-2 uppercase flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-600" />
                     {t.birthDateLabel} *
                   </label>
-                  <div className="relative">
-                    <input
-                      type="date"
-                      value={dob}
-                      onChange={(e) => {
-                        setDob(e.target.value);
-                        setErrorText('');
-                      }}
-                      className="w-full bg-white/10 border border-white/20 rounded-2xl py-3.5 px-5 text-lg text-white font-medium focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all relative z-10"
-                      required
-                    />
+                  <div className="grid grid-cols-12 gap-3 relative z-10">
+                    {/* Day Picker */}
+                    <div className="col-span-3">
+                      <select
+                        value={selectedDay}
+                        onChange={(e) => {
+                          setSelectedDay(e.target.value);
+                          handleDropdownDateChange(selectedYear, selectedMonth, e.target.value);
+                        }}
+                        className="w-full glass-input-liquid rounded-2xl py-3 px-1 text-center text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer"
+                        required
+                      >
+                        <option value="" className="text-slate-400 bg-white">
+                          {lang === 'ko' ? '일' : lang === 'zh' ? '日' : lang === 'es' ? 'Día' : 'Day'}
+                        </option>
+                        {Array.from(
+                          { length: getDaysInMonth(selectedYear, selectedMonth) },
+                          (_, i) => (i + 1).toString().padStart(2, '0')
+                        ).map((v) => (
+                          <option key={v} value={v} className="text-slate-900 bg-white">
+                            {parseInt(v)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Month Picker */}
+                    <div className="col-span-5">
+                      <select
+                        value={selectedMonth}
+                        onChange={(e) => {
+                          setSelectedMonth(e.target.value);
+                          handleDropdownDateChange(selectedYear, e.target.value, selectedDay);
+                        }}
+                        className="w-full glass-input-liquid rounded-2xl py-3 px-2 text-center text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer"
+                        required
+                      >
+                        <option value="" className="text-slate-400 bg-white">
+                          {lang === 'ko' ? '월' : lang === 'zh' ? '月' : lang === 'es' ? 'Mes' : 'Month'}
+                        </option>
+                        {getMonthNames().map((name, i) => {
+                          const val = (i + 1).toString().padStart(2, '0');
+                          return (
+                            <option key={val} value={val} className="text-slate-900 bg-white">
+                              {name}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+
+                    {/* Year Picker */}
+                    <div className="col-span-4">
+                      <select
+                        value={selectedYear}
+                        onChange={(e) => {
+                          setSelectedYear(e.target.value);
+                          handleDropdownDateChange(e.target.value, selectedMonth, selectedDay);
+                        }}
+                        className="w-full glass-input-liquid rounded-2xl py-3 px-2 text-center text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer"
+                        required
+                      >
+                        <option value="" className="text-slate-400 bg-white">
+                          {lang === 'ko' ? '연도' : lang === 'zh' ? '年' : lang === 'es' ? 'Año' : 'Year'}
+                        </option>
+                        {yearsList.map((y) => (
+                          <option key={y} value={y} className="text-slate-900 bg-white">
+                            {y}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
 
                 {/* Optional Time of Birth selection */}
                 <div>
-                  <label className="block text-[10px] font-bold tracking-widest text-indigo-200 mb-2 uppercase flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-pink-300" />
+                  <label className="block text-[10px] font-black tracking-widest text-slate-500 mb-2 uppercase flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-indigo-600" />
                     {t.birthTimeLabel}
                   </label>
                   <input
                     type="time"
                     value={birthTime}
                     onChange={(e) => setBirthTime(e.target.value)}
-                    className="w-full bg-white/10 border border-white/20 rounded-2xl py-3.5 px-5 text-white focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all"
+                    className="w-full glass-input-liquid rounded-2xl py-3.5 px-5 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
                   />
                 </div>
 
                 {/* Accessibility Voice Commands Panel */}
-                <div className="p-4 rounded-2xl bg-white/[0.05] border border-white/10 space-y-3">
+                <div className="p-4 rounded-2xl bg-white/40 border border-white/50 backdrop-blur-md space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="flex items-center justify-center w-2 h-2 rounded-full bg-rose-400 animate-pulse" />
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-200">
+                      <span className="flex items-center justify-center w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                         {t.voiceBtnLabel}
                       </span>
                     </div>
@@ -448,9 +686,9 @@ export default function App() {
                       <button
                         type="button"
                         onClick={startSpeechRecognition}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-white/10 text-white hover:bg-white/20 active:scale-95 transition-all cursor-pointer border border-white/20 shadow-sm"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-white/60 text-slate-850 hover:bg-slate-100/80 active:scale-95 transition-all cursor-pointer border border-slate-200/60 shadow-sm"
                       >
-                        <Mic className="w-3.5 h-3.5 text-pink-300" />
+                        <Mic className="w-3.5 h-3.5 text-indigo-600" />
                         <span>Start Speech</span>
                       </button>
                     ) : (
@@ -467,22 +705,22 @@ export default function App() {
 
                   {/* Voice state transcripts */}
                   {voiceStatus === 'listening' && (
-                    <p className="text-xs text-pink-200 italic animate-pulse">
+                    <p className="text-xs text-indigo-600 italic font-medium animate-pulse">
                       {t.voiceListening}
                     </p>
                   )}
                   {voiceStatus === 'success' && (
-                    <div className="space-y-1.5 text-xs text-pink-100">
-                      <p className="font-semibold flex items-center gap-1 text-emerald-300">
-                        <ShieldCheck className="w-3.5 h-3.5" /> {t.voiceSuccess}
+                    <div className="space-y-1.5 text-xs text-slate-700">
+                      <p className="font-bold flex items-center gap-1 text-emerald-600">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> {t.voiceSuccess}
                       </p>
-                      <p className="bg-black/30 p-2 rounded-xl border border-white/10 text-[11px] font-mono italic text-indigo-100">
+                      <p className="bg-slate-100/50 p-2.5 rounded-xl border border-slate-200/50 text-[11px] font-mono italic text-slate-800 font-medium">
                         "{spokenText}"
                       </p>
                     </div>
                   )}
                   {voiceStatus === 'error' && (
-                    <p className="text-xs text-rose-300 font-mono">
+                    <p className="text-xs text-rose-600 font-mono font-medium">
                       {errorText}
                     </p>
                   )}
@@ -490,7 +728,7 @@ export default function App() {
 
                 {/* Persona Gender/Avatar Selection */}
                 <div>
-                  <label className="block text-[10px] font-bold tracking-widest text-indigo-200 mb-2 uppercase">
+                  <label className="block text-[10px] font-black tracking-widest text-slate-500 mb-2 uppercase">
                     {t.genderSelect}
                   </label>
                   <div className="grid grid-cols-3 gap-2">
@@ -508,8 +746,8 @@ export default function App() {
                         }}
                         className={`px-2 py-2.5 rounded-xl text-[10px] font-bold border transition-all cursor-pointer text-center truncate ${
                           gender === g.code
-                            ? 'bg-pink-550/30 text-white border-pink-400 bg-pink-500/30 shadow-inner'
-                            : 'bg-white/5 text-indigo-200 border-white/5 hover:bg-white/10 hover:text-white'
+                            ? 'bg-indigo-600/10 text-indigo-950 border-indigo-200 shadow-sm font-black'
+                            : 'bg-white/40 text-slate-600 border-slate-200/50 hover:bg-white/85 hover:text-slate-900'
                         }`}
                       >
                         {g.label}
@@ -518,9 +756,11 @@ export default function App() {
                   </div>
                 </div>
 
+
+
                 {/* Error Banner */}
                 {errorText && voiceStatus !== 'error' && (
-                  <p className="text-xs text-rose-200 bg-rose-500/20 border border-rose-500/30 p-2.5 rounded-xl font-medium">
+                  <p className="text-xs text-rose-750 bg-rose-50 border border-rose-100 p-2.5 rounded-xl font-medium">
                     {errorText}
                   </p>
                 )}
@@ -529,7 +769,7 @@ export default function App() {
                 <div className="flex gap-2.5 pt-2">
                   <button
                     type="submit"
-                    className="flex-grow flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 hover:shadow-lg hover:shadow-pink-500/30 text-white font-extrabold transition-all cursor-pointer text-sm tracking-wide leading-none"
+                    className="flex-grow flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 hover:shadow-lg hover:shadow-indigo-500/10 text-white font-extrabold transition-all cursor-pointer text-sm tracking-wide leading-none shadow-sm"
                   >
                     <Sparkles className="w-4 h-4 text-white" />
                     <span>{t.calculateBtn}</span>
@@ -538,10 +778,10 @@ export default function App() {
                   <button
                     type="button"
                     onClick={handleReset}
-                    className="p-3.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/25 text-white transition-all cursor-pointer"
+                    className="p-3.5 rounded-2xl bg-white/40 hover:bg-slate-100/80 border border-slate-200/60 text-slate-700 transition-all cursor-pointer shadow-sm"
                     title="Reset parameters"
                   >
-                    <RefreshCw className="w-4 h-4" />
+                    <RefreshCw className="w-4 h-4 text-slate-600" />
                   </button>
                 </div>
 
@@ -549,7 +789,7 @@ export default function App() {
             </div>
 
             {/* Static footer message for SEO indexing */}
-            <div className="pt-6 mt-6 border-t border-white/5 text-[9px] text-slate-500 leading-relaxed font-mono">
+            <div className="pt-6 mt-6 border-t border-slate-250/10 text-[9px] text-slate-400 leading-relaxed font-mono">
               Universal UTC standard algorithm. Timezone: {Intl.DateTimeFormat().resolvedOptions().timeZone}
             </div>
 
@@ -565,19 +805,19 @@ export default function App() {
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.98 }}
-                  className="bg-white/15 backdrop-blur-lg border border-white/20 rounded-[40px] p-6 sm:p-8 shadow-2xl space-y-6 relative overflow-hidden"
+                  className="glass-container-liquid rounded-[40px] p-6 sm:p-8 shadow-xl shadow-slate-200/50 space-y-6 relative overflow-hidden"
                 >
                   {/* Decorative glowing back light */}
-                  <div className="absolute -top-16 -right-16 w-32 h-32 bg-pink-500/20 rounded-full filter blur-2xl" />
+                  <div className="absolute -top-16 -right-16 w-32 h-32 bg-pink-500/5 rounded-full filter blur-2xl" />
 
                   {/* Top results header card: Avatar + Big Age categories */}
-                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-6 border-b border-white/10">
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-6 border-b border-indigo-100/50">
                     
                     {/* SVG Avatar widget */}
                     <div className="flex-shrink-0 w-full sm:w-auto relative group">
                       <AgeAvatar category={result.category} gender={gender} />
                       <div className="absolute -bottom-2 inset-x-0 text-center">
-                        <span className="px-3 py-1 bg-pink-500 rounded-full text-[10px] font-black font-mono tracking-widest text-white shadow-md uppercase">
+                        <span className="px-3.5 py-1 bg-gradient-to-r from-pink-600 to-rose-600 rounded-full text-[10px] font-black font-mono tracking-widest text-white shadow-md uppercase">
                           {t[result.category]}
                         </span>
                       </div>
@@ -586,34 +826,34 @@ export default function App() {
                     {/* Accurate Age Grid counter */}
                     <div className="flex-grow space-y-4 text-center sm:text-left w-full">
                       <div>
-                        <span className="text-[10px] uppercase font-bold tracking-widest text-pink-200">
+                        <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500 font-mono">
                           {t.ageCategory}
                         </span>
-                        <h2 className="text-2xl font-display font-black text-white tracking-tight mt-1 flex items-center justify-center sm:justify-start gap-2">
+                        <h2 className="text-2xl font-display font-black text-slate-900 tracking-tight mt-1 flex items-center justify-center sm:justify-start gap-2">
                           <span>{t[result.category]}</span>
-                          <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_#4ade80]" title="Sec-accurate Tracker Active" />
+                          <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]" title="Sec-accurate Tracker Active" />
                         </h2>
                       </div>
 
                       {/* Precise values counter */}
                       <div className="grid grid-cols-3 gap-2.5 sm:gap-4 max-w-sm sm:max-w-none mx-auto sm:mx-0">
-                        <div className="px-3.5 py-3 rounded-2xl bg-white/10 border border-white/10 flex flex-col items-center sm:items-start justify-center shadow-inner">
-                          <span className="font-display text-2xl sm:text-3.5xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-pink-300 via-purple-100 to-white">
+                        <div className="px-3.5 py-3 rounded-2xl bg-white/70 border border-white/90 flex flex-col items-center sm:items-start justify-center shadow-sm">
+                          <span className="font-display text-2xl sm:text-3.5xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-indigo-700 via-purple-600 to-pink-600">
                             {result.years}
                           </span>
-                          <span className="text-[10px] text-pink-200 uppercase tracking-widest mt-0.5 font-bold">{t.years}</span>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5 font-bold">{t.years}</span>
                         </div>
-                        <div className="px-3.5 py-3 rounded-2xl bg-white/10 border border-white/10 flex flex-col items-center sm:items-start justify-center shadow-inner">
-                          <span className="font-display text-2xl sm:text-3.5xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-pink-300 via-purple-100 to-white">
+                        <div className="px-3.5 py-3 rounded-2xl bg-white/70 border border-white/90 flex flex-col items-center sm:items-start justify-center shadow-sm">
+                          <span className="font-display text-2xl sm:text-3.5xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-indigo-700 via-purple-600 to-pink-600">
                             {result.months}
                           </span>
-                          <span className="text-[10px] text-pink-200 uppercase tracking-widest mt-0.5 font-bold">{t.months}</span>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5 font-bold">{t.months}</span>
                         </div>
-                        <div className="px-3.5 py-3 rounded-2xl bg-white/10 border border-white/10 flex flex-col items-center sm:items-start justify-center shadow-inner">
-                          <span className="font-display text-2xl sm:text-3.5xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-pink-300 via-purple-100 to-white">
+                        <div className="px-3.5 py-3 rounded-2xl bg-white/70 border border-white/90 flex flex-col items-center sm:items-start justify-center shadow-sm">
+                          <span className="font-display text-2xl sm:text-3.5xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-indigo-700 via-purple-600 to-pink-600">
                             {result.days}
                           </span>
-                          <span className="text-[10px] text-pink-200 uppercase tracking-widest mt-0.5 font-bold">{t.days}</span>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5 font-bold">{t.days}</span>
                         </div>
                       </div>
                     </div>
@@ -621,53 +861,53 @@ export default function App() {
 
                   {/* Chronological Breakdown Stats */}
                   <div className="space-y-4">
-                    <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-indigo-200 flex items-center gap-1.5">
-                      <TrendingUp className="w-3.5 h-3.5 text-pink-300" />
+                    <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                      <TrendingUp className="w-3.5 h-3.5 text-indigo-500" />
                       {t.statsTitle}
                     </h3>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-[11px] text-white">
-                      <div className="p-3.5 rounded-xl bg-black/20 border border-white/10 space-y-1">
-                        <span className="text-pink-200/70 uppercase text-[9px] block leading-none font-bold">{t.weeks}</span>
-                        <span className="text-white font-extrabold text-xs">{result.totalWeeks.toLocaleString()}</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-[11px] text-slate-800">
+                      <div className="p-3.5 rounded-xl bg-white/55 border border-white/80 space-y-1 shadow-sm">
+                        <span className="text-slate-500 uppercase text-[9px] block leading-none font-bold">{t.weeks}</span>
+                        <span className="text-slate-950 font-extrabold text-xs">{result.totalWeeks.toLocaleString()}</span>
                       </div>
-                      <div className="p-3.5 rounded-xl bg-black/20 border border-white/10 space-y-1">
-                        <span className="text-pink-200/70 uppercase text-[9px] block leading-none font-bold">{t.days}</span>
-                        <span className="text-white font-extrabold text-xs">{result.totalDays.toLocaleString()}</span>
+                      <div className="p-3.5 rounded-xl bg-white/55 border border-white/80 space-y-1 shadow-sm">
+                        <span className="text-slate-500 uppercase text-[9px] block leading-none font-bold">{t.days}</span>
+                        <span className="text-slate-950 font-extrabold text-xs">{result.totalDays.toLocaleString()}</span>
                       </div>
-                      <div className="p-3.5 rounded-xl bg-black/20 border border-white/10 space-y-1">
-                        <span className="text-pink-200/70 uppercase text-[9px] block leading-none font-bold">{t.hours}</span>
-                        <span className="text-white font-extrabold text-xs">{result.totalHours.toLocaleString()}</span>
+                      <div className="p-3.5 rounded-xl bg-white/55 border border-white/80 space-y-1 shadow-sm">
+                        <span className="text-slate-500 uppercase text-[9px] block leading-none font-bold">{t.hours}</span>
+                        <span className="text-slate-950 font-extrabold text-xs">{result.totalHours.toLocaleString()}</span>
                       </div>
-                      <div className="p-3.5 rounded-xl bg-black/20 border border-white/10 space-y-1">
-                        <span className="text-pink-300 uppercase text-[9px] block leading-none font-black">{t.seconds}</span>
-                        <span className="text-pink-200 font-extrabold text-xs">{result.totalSeconds.toLocaleString()}</span>
+                      <div className="p-3.5 rounded-xl bg-white/55 border border-white/80 space-y-1 shadow-sm">
+                        <span className="text-pink-650 uppercase text-[9px] block leading-none font-black">{t.seconds}</span>
+                        <span className="text-pink-600 font-extrabold text-xs">{result.totalSeconds.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Next Birthday Details display */}
-                  <div className="p-5 rounded-[30px] bg-black/20 backdrop-blur-md border border-white/15 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="p-5 rounded-[30px] bg-indigo-50/40 backdrop-blur-md border border-indigo-100/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
                     <div className="space-y-1">
-                      <span className="text-[10px] uppercase font-mono tracking-widest text-pink-300 font-bold block">
+                      <span className="text-[10px] uppercase font-mono tracking-widest text-indigo-600 font-bold block">
                         {t.nextBirthday}
                       </span>
-                      <p className="text-xs text-indigo-100 opacity-90 leading-relaxed max-w-sm">
+                      <p className="text-xs text-slate-600 leading-relaxed max-w-sm">
                         {t.birthdayCountdown}
                       </p>
                     </div>
 
                     <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
                       <div className="text-right">
-                        <span className="font-display text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-300 via-purple-200 to-white block leading-none mb-1">
+                        <span className="font-display text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-750 via-indigo-600 to-pink-600 block leading-none mb-1">
                           {result.nextBirthdayDays} {t.days.toLowerCase()}
                         </span>
-                        <span className="text-[10px] font-mono text-indigo-200 block">
-                          {t.nextBirthdayDay}: <span className="text-white font-bold">{lang === 'hi' || lang === 'bn' || lang === 'ja' || lang === 'ar' ? result.nextBirthdayDate.toLocaleDateString(lang, { weekday: 'long' }) : result.nextBirthdayWeekday}</span>
+                        <span className="text-[10px] font-mono text-slate-500 block">
+                          {t.nextBirthdayDay}: <span className="text-indigo-600 font-bold">{lang === 'hi' || lang === 'bn' || lang === 'ja' || lang === 'ar' ? result.nextBirthdayDate.toLocaleDateString(lang, { weekday: 'long' }) : result.nextBirthdayWeekday}</span>
                         </span>
                       </div>
-                      <span className="p-2.5 rounded-xl bg-white/10 text-pink-300 border border-white/10 shadow-sm">
-                        <Award className="w-5 h-5 text-pink-300" />
+                      <span className="p-2.5 rounded-xl bg-indigo-600/10 text-indigo-600 border border-indigo-100 shadow-sm animate-pulse">
+                        <Award className="w-5 h-5" />
                       </span>
                     </div>
                   </div>
@@ -685,17 +925,17 @@ export default function App() {
                     const picked = defaults[Math.floor(Math.random() * defaults.length)];
                     setDob(picked);
                   }}
-                  className="bg-white/15 backdrop-blur-lg border border-white/20 rounded-[40px] p-10 h-full min-h-[300px] flex flex-col items-center justify-center text-center gap-4 cursor-pointer hover:border-pink-300 hover:bg-white/20 transition-all relative group shadow-2xl"
+                  className="glass-container-liquid rounded-[40px] p-10 h-full min-h-[300px] flex flex-col items-center justify-center text-center gap-4 cursor-pointer hover:border-indigo-300 hover:bg-white/50 transition-all relative group shadow-xl shadow-slate-200/40"
                 >
-                  <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-pink-200 group-hover:scale-110 group-hover:bg-pink-500/20 group-hover:text-white transition-all shadow-md">
+                  <div className="w-16 h-16 rounded-2xl bg-indigo-50/60 border border-indigo-100 flex items-center justify-center text-indigo-650 group-hover:scale-110 group-hover:bg-indigo-600/25 group-hover:text-indigo-750 transition-all shadow-sm">
                     <Info className="w-8 h-8" />
                   </div>
                   
                   <div>
-                    <h4 className="font-display font-black text-lg text-white">
+                    <h4 className="font-display font-black text-lg text-slate-900">
                       {lang === 'bn' ? 'ফলাফল দেখতে জন্ম তারিখ দিন' : lang === 'es' ? 'Introduzca su fecha de nacimiento' : 'Awaiting Calculation Input'}
                     </h4>
-                    <p className="text-xs text-indigo-100 opacity-80 max-w-sm mt-1.5 leading-relaxed font-light">
+                    <p className="text-xs text-slate-500 max-w-sm mt-1.5 leading-relaxed font-semibold">
                       {lang === 'bn' 
                         ? 'আপনার বয়স কত বছর, মাস ও দিন হয়েছে তা জানতে ফর্মটি পূরণ করুন' 
                         : lang === 'es' 
@@ -704,7 +944,7 @@ export default function App() {
                     </p>
                   </div>
 
-                  <span className="px-3 py-1.5 rounded-full text-[10px] font-mono font-bold tracking-wide bg-gradient-to-r from-pink-500/20 to-purple-500/20 text-pink-200 border border-pink-400/30 group-hover:scale-105 transition-all mt-2 shadow-sm">
+                  <span className="px-3.5 py-1.5 rounded-full text-[10px] font-mono font-bold tracking-wide bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 border border-indigo-100 group-hover:scale-105 transition-all mt-2 shadow-sm">
                     {lang === 'bn' ? 'অটো-সাজেশন দিতে ক্লিক করুন' : 'Click frame to auto-suggest birthdate'}
                   </span>
                 </motion.div>
@@ -712,42 +952,42 @@ export default function App() {
             </AnimatePresence>
 
             {/* Google Analytics Simulated Engagement Trend Dashboard */}
-            <div className="bg-white/15 backdrop-blur-lg border border-white/20 rounded-[40px] p-6 shadow-2xl relative overflow-hidden">
-              <div className="flex items-center justify-between gap-4 mb-4 pb-3 border-b border-white/10">
+            <div className="glass-container-liquid rounded-[40px] p-6 shadow-xl shadow-slate-200/50 relative overflow-hidden">
+              <div className="flex items-center justify-between gap-4 mb-4 pb-3 border-b border-indigo-100/50">
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <Activity className="w-4 h-4 text-pink-300" />
-                    <h3 className="font-display font-black text-sm text-white">
+                    <Activity className="w-4 h-4 text-indigo-600" />
+                    <h3 className="font-display font-black text-sm text-slate-900">
                       {t.analyticsTitle}
                     </h3>
                   </div>
-                  <p className="text-[10px] text-indigo-200 opacity-80 mt-0.5">
+                  <p className="text-[10px] text-slate-500 font-medium">
                     {t.analyticsSubtitle}
                   </p>
                 </div>
 
-                <div className="px-2.5 py-1 rounded-full bg-pink-500/20 border border-pink-500/35 text-pink-200 text-[9px] font-mono font-black tracking-widest uppercase">
+                <div className="px-2.5 py-1 rounded-full bg-indigo-600/10 border border-indigo-200 text-indigo-700 text-[9px] font-mono font-black tracking-widest uppercase">
                   GA Tracked
                 </div>
               </div>
 
               {/* Stats values row */}
               <div className="grid grid-cols-3 gap-2.5 sm:gap-4 text-center sm:text-left mb-6 font-mono">
-                <div className="p-2.5 rounded-xl bg-white/10 border border-white/10">
-                  <span className="text-[9px] text-pink-200 uppercase tracking-wider block leading-none font-bold">{t.analyticsActiveUsers}</span>
-                  <span className="text-white font-extrabold text-sm sm:text-base mt-2 block">
-                    {globalSessions.toLocaleString()} <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-0.5 shadow-[0_0_8px_#4ade80]" />
+                <div className="p-2.5 rounded-xl bg-white/60 border border-slate-200/60 shadow-sm">
+                  <span className="text-[9px] text-slate-500 uppercase tracking-wider block leading-none font-bold">{t.analyticsActiveUsers}</span>
+                  <span className="text-slate-900 font-black text-sm sm:text-base mt-2 block">
+                    {globalSessions.toLocaleString()} <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse ml-0.5 shadow-[0_0_8px_#10b981]" />
                   </span>
                 </div>
-                <div className="p-2.5 rounded-xl bg-white/10 border border-white/10">
-                  <span className="text-[9px] text-pink-200 uppercase tracking-wider block leading-none font-bold">{t.analyticsTotalCalc}</span>
-                  <span className="text-pink-100 font-extrabold text-sm sm:text-base mt-2 block">
+                <div className="p-2.5 rounded-xl bg-white/60 border border-slate-200/60 shadow-sm">
+                  <span className="text-[9px] text-slate-500 uppercase tracking-wider block leading-none font-bold">{t.analyticsTotalCalc}</span>
+                  <span className="text-slate-900 font-black text-sm sm:text-base mt-2 block">
                     {cumulativeCalculations.toLocaleString()}
                   </span>
                 </div>
-                <div className="p-2.5 rounded-xl bg-white/10 border border-white/10">
-                  <span className="text-[9px] text-pink-200 uppercase tracking-wider block leading-none font-bold">{t.analyticsVoiceSuccessRate}</span>
-                  <span className="text-purple-200 font-extrabold text-sm sm:text-base mt-2 block">
+                <div className="p-2.5 rounded-xl bg-white/60 border border-slate-200/60 shadow-sm">
+                  <span className="text-[9px] text-slate-500 uppercase tracking-wider block leading-none font-bold">{t.analyticsVoiceSuccessRate}</span>
+                  <span className="text-slate-900 font-black text-sm sm:text-base mt-2 block">
                     {voiceAccuracy.toFixed(1)}%
                   </span>
                 </div>
@@ -755,25 +995,25 @@ export default function App() {
 
               {/* Dynamic Line Chart / SVG Graphic representation */}
               <div className="relative">
-                <div className="absolute top-2 left-3 text-[9px] text-indigo-200 opacity-60 font-mono">
+                <div className="absolute top-2 left-3 text-[9px] text-indigo-650 font-mono font-bold">
                   Calculators Engagement Velocity (Real-time updates)
                 </div>
 
-                <div className="h-[75px] w-full flex items-end gap-1 px-1 pt-6 pb-2 bg-black/25 rounded-2xl border border-white/10 relative">
+                <div className="h-[75px] w-full flex items-end gap-1 px-1 pt-6 pb-2 bg-slate-100/60 rounded-2xl border border-slate-200/60 relative">
                   {/* Grid lines */}
-                  <div className="absolute inset-x-0 top-1/4 border-b border-white/[0.04]" />
-                  <div className="absolute inset-x-0 top-2/4 border-b border-white/[0.04]" />
-                  <div className="absolute inset-x-0 top-3/4 border-b border-white/[0.04]" />
+                  <div className="absolute inset-x-0 top-1/4 border-b border-indigo-100/20" />
+                  <div className="absolute inset-x-0 top-2/4 border-b border-indigo-100/20" />
+                  <div className="absolute inset-x-0 top-3/4 border-b border-indigo-100/20" />
 
                   {analyticsLogs.map((val, idx) => (
                     <div key={idx} className="flex-grow flex flex-col justify-end h-full group/bar relative">
                       {/* Interactive hover tooltip value */}
-                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 -translate-y-1 px-1.5 py-0.5 rounded bg-purple-900 border border-white/20 text-[8px] font-mono text-pink-250 opacity-0 group-hover/bar:opacity-100 transition-opacity z-10 whitespace-nowrap text-white font-bold shadow-md">
+                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 -translate-y-1 px-1.5 py-0.5 rounded bg-slate-950 border border-slate-705 text-[8px] font-mono text-white opacity-0 group-hover/bar:opacity-100 transition-opacity z-10 whitespace-nowrap font-bold shadow-md">
                         V: {val}c/m
                       </span>
                       {/* Chart bar colored column */}
                       <div 
-                        className="w-full rounded-t-sm bg-gradient-to-t from-pink-500/30 via-purple-500/60 to-pink-400 group-hover/bar:to-white transition-all"
+                        className="w-full rounded-t-lg bg-gradient-to-t from-indigo-500/20 via-indigo-600/80 to-purple-500 group-hover/bar:from-indigo-600/40 group-hover/bar:to-purple-600 transition-all shadow-sm"
                         style={{ height: `${(val / 150) * 100}%` }}
                       />
                     </div>
@@ -786,17 +1026,17 @@ export default function App() {
         </div>
 
         {/* Google AdSense Integrated Placement section */}
-        <section className="mt-2 text-slate-200">
+        <section className="mt-2 text-slate-850">
           <AdSenseBlock t={t} />
         </section>
 
         {/* Beautiful Semantic SEO-Based FAQ Area Accordion Accordion */}
-        <section className="bg-white/15 backdrop-blur-lg border border-white/20 rounded-[40px] p-6 sm:p-8 shadow-2xl space-y-6">
-          <div className="flex items-center gap-2 mb-2 pb-3 border-b border-white/10">
-            <span className="p-2 rounded-xl bg-pink-500/20 text-pink-300 border border-pink-500/30">
+        <section className="glass-container-liquid rounded-[40px] p-6 sm:p-8 shadow-xl shadow-slate-200/50 space-y-6 animate-fade-in">
+          <div className="flex items-center gap-2 mb-2 pb-3 border-b border-indigo-100/50">
+            <span className="p-2 rounded-xl bg-indigo-600/10 text-indigo-600 border border-indigo-100">
               <HelpCircle className="w-5 h-5" />
             </span>
-            <h3 className="font-display font-black text-lg text-white">
+            <h3 className="font-display font-black text-lg text-slate-900">
               {t.faqTitle}
             </h3>
           </div>
@@ -807,14 +1047,14 @@ export default function App() {
               return (
                 <div 
                   key={feed.id} 
-                  className="rounded-2xl bg-white/10 border border-white/10 overflow-hidden transition-all hover:border-pink-300 hover:bg-white/15"
+                  className="rounded-2xl bg-white/50 border border-white/90 overflow-hidden transition-all hover:border-indigo-300 hover:bg-white/80"
                 >
                   <button
                     onClick={() => setOpenFaqId(isOpen ? null : feed.id)}
-                    className="w-full px-5 py-4 flex items-center justify-between gap-4 text-left font-display font-medium text-xs sm:text-sm text-white hover:text-pink-200 transition-colors cursor-pointer"
+                    className="w-full px-5 py-4 flex items-center justify-between gap-4 text-left font-display font-bold text-xs sm:text-sm text-slate-850 hover:text-indigo-900 transition-colors cursor-pointer"
                   >
                     <span>{feed.question}</span>
-                    <span className="p-1 rounded-lg bg-white/10 border border-white/10 text-white">
+                    <span className="p-1 rounded-lg bg-white border border-slate-200 text-slate-750 shadow-sm animate-fade-in">
                       {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </span>
                   </button>
@@ -827,7 +1067,7 @@ export default function App() {
                         exit={{ height: 0 }}
                         className="overflow-hidden"
                       >
-                        <p className="px-5 pb-5 pt-1 text-xs text-indigo-100 opacity-90 leading-relaxed font-sans border-t border-white/10">
+                        <p className="px-5 pb-5 pt-1 text-xs text-slate-650 leading-relaxed font-sans border-t border-indigo-50/80 font-medium">
                           {feed.answer}
                         </p>
                       </motion.div>
@@ -842,18 +1082,18 @@ export default function App() {
       </main>
 
       {/* Humble Footer containing info, privacy compliance, and developer credits */}
-      <footer className="max-w-5xl mx-auto w-full mt-10 pt-6 border-t border-white/10 text-center flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-[10px] text-indigo-200/60 relative z-10 selection:bg-none">
+      <footer className="max-w-5xl mx-auto w-full mt-10 pt-6 border-t border-slate-200 text-center flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-[10px] text-slate-505 relative z-10 selection:bg-none">
         <div className="flex items-center gap-2">
           <span>© 2026 Age Calculator App. Verified secure sandbox.</span>
         </div>
         
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1 font-medium text-indigo-200/80">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Web Accessibility AAA Compliance
+          <span className="flex items-center gap-1 font-semibold text-slate-600">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Web Accessibility AAA Compliance
           </span>
-          <span className="text-white/20">|</span>
-          <span className="flex items-center gap-1 font-sans font-black text-[11px] text-pink-200 hover:text-white cursor-pointer transition-colors">
-            <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
+          <span className="text-slate-300">|</span>
+          <span className="flex items-center gap-1 font-sans font-black text-[11px] text-pink-600 hover:text-pink-700 cursor-pointer transition-colors">
+            <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500 animate-pulse" />
             <span>Built for the World</span>
           </span>
         </div>
