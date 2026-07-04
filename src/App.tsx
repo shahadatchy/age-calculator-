@@ -24,8 +24,6 @@ import {
   Share2,
   Copy,
   Check,
-  Facebook,
-  Twitter,
   MessageCircle,
   Mail,
   Link,
@@ -34,11 +32,12 @@ import {
   Moon,
   Trash,
   Plus,
-  Bell
+  Bell,
+  History
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 
-import { LanguageCode, AgeCalculationResult, Gender } from './types';
+import { LanguageCode, AgeCalculationResult, Gender, HistoryItem } from './types';
 import { translations, faqs } from './data';
 import { calculatePreciseAge, parseSpokenDOB, getWesternZodiac, getChineseZodiac } from './utils';
 import AgeAvatar from './components/AgeAvatar';
@@ -46,6 +45,7 @@ import SandsOfTime from './components/SandsOfTime';
 import AdSenseBlock from './components/AdSenseBlock';
 import LegalAboutModals from './components/LegalAboutModals';
 import SocialCardGenerator from './components/SocialCardGenerator';
+import HistoryModal from './components/HistoryModal';
 import { regionsList, lifeSuggestions } from './regions';
 import { getCelebritiesForDate } from './celebrities';
 
@@ -107,6 +107,15 @@ export default function App() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [historyList, setHistoryList] = useState<HistoryItem[]>(() => {
+    try {
+      const stored = localStorage.getItem('precision_age_history');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
   const [activeLegalTab, setActiveLegalTab] = useState<'privacy' | 'terms' | 'about' | 'growth'>('privacy');
 
   // Year, Month, Day separate picker states for easier custom entry
@@ -578,6 +587,33 @@ export default function App() {
       setIsLiveUpdating(true);
       setSingleCalcCount(prev => prev + 1);
       
+      // Save to localStorage history list
+      const newItem: HistoryItem = {
+        id: Math.random().toString(36).substring(2, 9) + '-' + Date.now(),
+        dob,
+        birthTime,
+        gender,
+        timestamp: new Date().toISOString(),
+        result: {
+          years: preciseResult.years,
+          months: preciseResult.months,
+          days: preciseResult.days,
+          totalWeeks: preciseResult.totalWeeks,
+          totalDays: preciseResult.totalDays,
+          totalHours: preciseResult.totalHours,
+          totalMinutes: preciseResult.totalMinutes,
+          totalSeconds: preciseResult.totalSeconds,
+          category: preciseResult.category,
+        }
+      };
+
+      setHistoryList(prev => {
+        const filtered = prev.filter(item => item.dob !== dob || item.birthTime !== birthTime);
+        const updated = [newItem, ...filtered].slice(0, 5);
+        localStorage.setItem('precision_age_history', JSON.stringify(updated));
+        return updated;
+      });
+      
       // Log Simulated Google Analytics custom Event Hit!
       console.log(`[Google Analytics Hit] event_name: "calculate_age", params: { age_group: "${preciseResult.category}", selected_language: "${lang}" }`);
       
@@ -591,6 +627,42 @@ export default function App() {
     } catch (err: any) {
       setErrorText(err.message || 'An error occurred during calculation.');
     }
+  };
+
+  // Calculation History Handlers
+  const handleSelectHistory = (item: HistoryItem) => {
+    setDob(item.dob);
+    setBirthTime(item.birthTime);
+    setGender(item.gender);
+    setIsHistoryModalOpen(false);
+    
+    // Auto-calculate for this loaded history item
+    try {
+      const birthDateObj = new Date(item.dob);
+      const preciseResult = calculatePreciseAge(birthDateObj, item.birthTime);
+      setResult(preciseResult);
+      setIsLiveUpdating(true);
+      
+      // Auto scroll to results
+      setTimeout(() => {
+        resultsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
+    } catch {
+      // ignore corrupt load
+    }
+  };
+
+  const handleDeleteHistory = (id: string) => {
+    setHistoryList(prev => {
+      const updated = prev.filter(item => item.id !== id);
+      localStorage.setItem('precision_age_history', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const handleClearHistory = () => {
+    setHistoryList([]);
+    localStorage.removeItem('precision_age_history');
   };
 
 
@@ -2462,6 +2534,21 @@ Calculated locally on-device • 100% safe, secure & private
                     >
                       <RefreshCw className="w-3.5 h-3.5 text-slate-650" />
                     </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsHistoryModalOpen(true)}
+                      className="p-3 rounded-2xl bg-white/40 hover:bg-slate-100/80 border border-slate-200/60 text-slate-705 transition-all cursor-pointer shadow-sm relative group"
+                      title="View calculation history"
+                    >
+                      <History className="w-3.5 h-3.5 text-slate-650 group-hover:rotate-12 transition-transform" />
+                      {historyList.length > 0 && (
+                        <span className="absolute top-1 right-1 flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                        </span>
+                      )}
+                    </button>
                   </div>
                 </form>
               )}
@@ -2605,24 +2692,36 @@ Calculated locally on-device • 100% safe, secure & private
 
                       {/* Precise values counter */}
                       <div className="grid grid-cols-3 gap-2.5 sm:gap-4 max-w-sm sm:max-w-none mx-auto sm:mx-0">
-                        <div className="px-3.5 py-3 rounded-2xl bg-white/70 border border-white/90 flex flex-col items-center sm:items-start justify-center shadow-sm">
+                        <motion.div 
+                          whileHover={{ y: -5, scale: 1.03, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)" }}
+                          transition={{ type: "spring", stiffness: 300, damping: 18 }}
+                          className="px-3.5 py-3 rounded-2xl bg-white/70 border border-white/90 flex flex-col items-center sm:items-start justify-center shadow-sm cursor-default select-none"
+                        >
                           <span className="font-display text-2xl sm:text-3.5xl font-black text-slate-900">
                             {result.years}
                           </span>
                           <span className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5 font-bold">{t.years}</span>
-                        </div>
-                        <div className="px-3.5 py-3 rounded-2xl bg-white/70 border border-white/90 flex flex-col items-center sm:items-start justify-center shadow-sm">
+                        </motion.div>
+                        <motion.div 
+                          whileHover={{ y: -5, scale: 1.03, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)" }}
+                          transition={{ type: "spring", stiffness: 300, damping: 18 }}
+                          className="px-3.5 py-3 rounded-2xl bg-white/70 border border-white/90 flex flex-col items-center sm:items-start justify-center shadow-sm cursor-default select-none"
+                        >
                           <span className="font-display text-2xl sm:text-3.5xl font-black text-slate-900">
                             {result.months}
                           </span>
                           <span className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5 font-bold">{t.months}</span>
-                        </div>
-                        <div className="px-3.5 py-3 rounded-2xl bg-white/70 border border-white/90 flex flex-col items-center sm:items-start justify-center shadow-sm">
+                        </motion.div>
+                        <motion.div 
+                          whileHover={{ y: -5, scale: 1.03, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)" }}
+                          transition={{ type: "spring", stiffness: 300, damping: 18 }}
+                          className="px-3.5 py-3 rounded-2xl bg-white/70 border border-white/90 flex flex-col items-center sm:items-start justify-center shadow-sm cursor-default select-none"
+                        >
                           <span className="font-display text-2xl sm:text-3.5xl font-black text-slate-900">
                             {result.days}
                           </span>
                           <span className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5 font-bold">{t.days}</span>
-                        </div>
+                        </motion.div>
                       </div>
                     </div>
                   </motion.div>
@@ -2635,22 +2734,38 @@ Calculated locally on-device • 100% safe, secure & private
                     </h3>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-[11px] text-slate-800">
-                      <div className="p-3.5 rounded-xl bg-white/55 border border-white/80 space-y-1 shadow-sm text-center sm:text-left">
+                      <motion.div 
+                        whileHover={{ y: -4, scale: 1.02, boxShadow: "0 8px 20px -4px rgba(0, 0, 0, 0.05)" }}
+                        transition={{ type: "spring", stiffness: 300, damping: 18 }}
+                        className="p-3.5 rounded-xl bg-white/55 border border-white/80 space-y-1 shadow-sm text-center sm:text-left cursor-default select-none"
+                      >
                         <span className="text-slate-500 uppercase text-[9px] block leading-none font-bold">{t.weeks}</span>
                         <span className="text-slate-950 font-extrabold text-xs">{result.totalWeeks.toLocaleString()}</span>
-                      </div>
-                      <div className="p-3.5 rounded-xl bg-white/55 border border-white/80 space-y-1 shadow-sm text-center sm:text-left">
+                      </motion.div>
+                      <motion.div 
+                        whileHover={{ y: -4, scale: 1.02, boxShadow: "0 8px 20px -4px rgba(0, 0, 0, 0.05)" }}
+                        transition={{ type: "spring", stiffness: 300, damping: 18 }}
+                        className="p-3.5 rounded-xl bg-white/55 border border-white/80 space-y-1 shadow-sm text-center sm:text-left cursor-default select-none"
+                      >
                         <span className="text-slate-500 uppercase text-[9px] block leading-none font-bold">{t.days}</span>
                         <span className="text-slate-950 font-extrabold text-xs">{result.totalDays.toLocaleString()}</span>
-                      </div>
-                      <div className="p-3.5 rounded-xl bg-white/55 border border-white/80 space-y-1 shadow-sm text-center sm:text-left">
+                      </motion.div>
+                      <motion.div 
+                        whileHover={{ y: -4, scale: 1.02, boxShadow: "0 8px 20px -4px rgba(0, 0, 0, 0.05)" }}
+                        transition={{ type: "spring", stiffness: 300, damping: 18 }}
+                        className="p-3.5 rounded-xl bg-white/55 border border-white/80 space-y-1 shadow-sm text-center sm:text-left cursor-default select-none"
+                      >
                         <span className="text-slate-500 uppercase text-[9px] block leading-none font-bold">{t.hours}</span>
                         <span className="text-slate-950 font-extrabold text-xs">{result.totalHours.toLocaleString()}</span>
-                      </div>
-                      <div className="p-3.5 rounded-xl bg-white/55 border border-white/80 space-y-1 shadow-sm text-center sm:text-left">
+                      </motion.div>
+                      <motion.div 
+                        whileHover={{ y: -4, scale: 1.02, boxShadow: "0 8px 20px -4px rgba(0, 0, 0, 0.05)" }}
+                        transition={{ type: "spring", stiffness: 300, damping: 18 }}
+                        className="p-3.5 rounded-xl bg-white/55 border border-white/80 space-y-1 shadow-sm text-center sm:text-left cursor-default select-none"
+                      >
                         <span className="text-slate-500 uppercase text-[9px] block leading-none font-bold">{t.seconds}</span>
                         <span className="text-slate-950 font-extrabold text-xs">{result.totalSeconds.toLocaleString()}</span>
-                      </div>
+                      </motion.div>
                     </div>
                   </motion.div>
 
@@ -3726,7 +3841,9 @@ Calculated locally on-device • 100% safe, secure & private
                   }}
                   className="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-50 hover:bg-sky-50 hover:text-sky-600 text-slate-700 transition-all group border border-slate-100 cursor-pointer shadow-sm active:scale-95"
                 >
-                  <Twitter className="w-5 h-5 group-hover:scale-110 transition-transform text-sky-500" />
+                  <svg className="w-5 h-5 group-hover:scale-110 transition-transform text-sky-500 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
+                  </svg>
                   <span className="text-[9px] font-bold mt-1.5">Twitter</span>
                 </button>
 
@@ -3738,7 +3855,9 @@ Calculated locally on-device • 100% safe, secure & private
                   }}
                   className="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-50 hover:bg-blue-50 hover:text-blue-600 text-slate-700 transition-all group border border-slate-100 cursor-pointer shadow-sm active:scale-95"
                 >
-                  <Facebook className="w-5 h-5 group-hover:scale-110 transition-transform text-blue-600" />
+                  <svg className="w-5 h-5 group-hover:scale-110 transition-transform text-blue-600 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"></path>
+                  </svg>
                   <span className="text-[9px] font-bold mt-1.5">Facebook</span>
                 </button>
 
@@ -3826,6 +3945,17 @@ Calculated locally on-device • 100% safe, secure & private
         gender={gender}
         lang={lang}
         translations={translations}
+      />
+
+      {/* Elegant History Modal */}
+      <HistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+        historyList={historyList}
+        onSelectHistory={handleSelectHistory}
+        onDeleteHistory={handleDeleteHistory}
+        onClearHistory={handleClearHistory}
+        lang={lang}
       />
 
     </div>

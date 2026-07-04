@@ -68,6 +68,25 @@ export interface AgeCalculationResult {
   category: AgeCategory;
 }
 
+export interface HistoryItem {
+  id: string;
+  dob: string;
+  birthTime: string;
+  gender: Gender;
+  timestamp: string;
+  result: {
+    years: number;
+    months: number;
+    days: number;
+    totalWeeks: number;
+    totalDays: number;
+    totalHours: number;
+    totalMinutes: number;
+    totalSeconds: number;
+    category: string;
+  };
+}
+
 export interface FAQItem {
   id: string;
   question: string;
