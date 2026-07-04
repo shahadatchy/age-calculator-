@@ -2200,7 +2200,10 @@ Calculated locally on-device • 100% safe, secure & private
                       {t.birthDateLabel} *
                     </label>
                     
-                    <div className="relative flex flex-col sm:flex-row sm:items-center w-full gap-3 bg-white/40 dark:bg-zinc-900/60 border border-slate-200/60 dark:border-zinc-800 rounded-3xl p-3 shadow-md focus-within:ring-2 focus-within:ring-indigo-500/25 dark:focus-within:ring-purple-500/25 transition-all">
+                    <div 
+                      className="relative flex flex-col sm:flex-row sm:items-center w-full gap-3 bg-white/40 dark:bg-zinc-900/60 border border-slate-200/60 dark:border-zinc-800 rounded-3xl p-3 shadow-md focus-within:ring-2 focus-within:ring-indigo-500/25 dark:focus-within:ring-purple-500/25 transition-all"
+                      style={{ backgroundColor: '#5b07f5' }}
+                    >
                       {/* Left icon */}
                       <div className="flex items-center gap-2 pl-1.5 justify-center sm:justify-start">
                         <Calendar className="w-5 h-5 text-indigo-500 dark:text-purple-400" />
@@ -2288,6 +2291,7 @@ Calculated locally on-device • 100% safe, secure & private
                                 type="button"
                                 onClick={startSpeechRecognition}
                                 className="p-2 rounded-full hover:bg-slate-105 dark:hover:bg-zinc-800 text-slate-500 hover:text-indigo-600 dark:hover:text-purple-400 transition-all cursor-pointer relative"
+                                style={{ backgroundColor: '#efe9e9' }}
                                 title="Start voice DOB input"
                               >
                                 <Mic className="w-5 h-5" />
@@ -2297,6 +2301,7 @@ Calculated locally on-device • 100% safe, secure & private
                                 type="button"
                                 onClick={stopSpeechRecognition}
                                 className="p-2 rounded-full bg-rose-500 text-white animate-pulse cursor-pointer shadow-md relative"
+                                style={{ backgroundColor: '#efe9e9' }}
                                 title="Stop voice listening"
                               >
                                 <MicOff className="w-5 h-5" />
@@ -3534,6 +3539,8 @@ Calculated locally on-device • 100% safe, secure & private
 
           {/* Right Column: Sticky Sidebar with Premium Adsterra Ads */}
           <aside className="lg:col-span-4 lg:sticky lg:top-24 flex flex-col gap-6 w-full">
+            <AdSenseBlock t={t} isDark={isDark} />
+            <AdSenseBlock t={t} isDark={isDark} />
             <AdSenseBlock t={t} isDark={isDark} />
             <AdSenseBlock t={t} isDark={isDark} />
           </aside>
