@@ -2,11 +2,11 @@ import { TranslationDict, FAQItem, LanguageCode } from './types';
 
 export const translations: Record<LanguageCode, TranslationDict> = {
   en: {
-    title: 'Precise Age Calculator',
+    title: 'Age Calculator',
     subtitle: 'High precision age, exact breakdown & premium statistics',
     birthDateLabel: 'Date of Birth',
     birthTimeLabel: 'Time of Birth (Optional)',
-    calculateBtn: 'Calculate Precise Age',
+    calculateBtn: 'Calculate Age',
     voiceBtnLabel: 'Voice Input DOB',
     voiceListening: 'Listening for Date of Birth... (e.g. "October twenty-first nineteen ninety-five")',
     voiceProcessing: 'Parsing spoke date text...',
@@ -49,11 +49,11 @@ export const translations: Record<LanguageCode, TranslationDict> = {
     analyticsVoiceSuccessRate: 'Voice Parser Accuracy Rate'
   },
   es: {
-    title: 'Calculadora de Edad Precisa',
+    title: 'Calculadora de Edad',
     subtitle: 'Cálculo de edad de alta precisión con desglose exacto',
     birthDateLabel: 'Fecha de Nacimiento',
     birthTimeLabel: 'Hora de Nacimiento (Opcional)',
-    calculateBtn: 'Calcular Edad Exacta',
+    calculateBtn: 'Calcular Edad',
     voiceBtnLabel: 'Entrada por Voz',
     voiceListening: 'Escuchando fecha... (ej: "Veintiuno de octubre de mil novecientos noventa y cinco")',
     voiceProcessing: 'Procesando texto de voz...',
@@ -284,11 +284,11 @@ export const translations: Record<LanguageCode, TranslationDict> = {
     analyticsVoiceSuccessRate: '音声認証解析精度'
   },
   bn: {
-    title: 'সঠিক বয়স ক্যালকুলেটর',
+    title: 'বয়স ক্যালকুলেটর',
     subtitle: 'রিয়েল-টাইম সেকেন্ডের বিশ্লেষণ ও আকর্ষণীয় ক্যাটাগরি অবতার',
     birthDateLabel: 'জন্ম তারিখ',
     birthTimeLabel: 'জন্মের সময় (ঐচ্ছিক)',
-    calculateBtn: 'সঠিক বয়স হিসাব করুন',
+    calculateBtn: 'বয়স হিসাব করুন',
     voiceBtnLabel: 'কন্ঠস্বরের মাধ্যমে এন্ট্রি',
     voiceListening: 'আপনার কন্ঠ শুনছে... (যেমন: "অক্টোবর ২১, ১৯৯৫")',
     voiceProcessing: 'জন্মতারিখের তথ্য বিশ্লেষণ করা হচ্ছে...',

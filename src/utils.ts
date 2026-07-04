@@ -219,3 +219,157 @@ export function parseSpokenDOB(text: string, currentLang: string): Date | null {
 
   return null;
 }
+
+export interface ZodiacInfo {
+  sign: string;
+  emoji: string;
+  personality: {
+    en: string;
+    es: string;
+    bn: string;
+  };
+}
+
+export function getWesternZodiac(date: Date): ZodiacInfo {
+  const month = date.getMonth() + 1; // 1-12
+  const day = date.getDate();
+
+  if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) {
+    return {
+      sign: "Aries", emoji: "♈",
+      personality: {
+        en: "Bold, energetic, and a natural born leader.",
+        es: "Audaz, enérgico y líder nato.",
+        bn: "সাহসী, উদ্যমী এবং একজন জন্মগত নেতা।"
+      }
+    };
+  }
+  if ((month === 4 && day >= 20) || (month === 5 && day <= 20)) {
+    return {
+      sign: "Taurus", emoji: "♉",
+      personality: {
+        en: "Reliable, patient, and appreciates the finer things.",
+        es: "Confiable, paciente y amante del buen vivir.",
+        bn: "নির্ভরযোগ্য, ধৈর্যশীল এবং সুন্দর জিনিসের সমঝদার।"
+      }
+    };
+  }
+  if ((month === 5 && day >= 21) || (month === 6 && day <= 20)) {
+    return {
+      sign: "Gemini", emoji: "♊",
+      personality: {
+        en: "Adaptable, curious, and a brilliant conversationalist.",
+        es: "Adaptable, curioso y un conversador brillante.",
+        bn: "মানিয়ে নিতে পারে, কৌতূহলী এবং চমৎকার কথক।"
+      }
+    };
+  }
+  if ((month === 6 && day >= 21) || (month === 7 && day <= 22)) {
+    return {
+      sign: "Cancer", emoji: "♋",
+      personality: {
+        en: "Compassionate, intuitive, and deeply protective.",
+        es: "Compasivo, intuitivo y muy protector de sus seres queridos.",
+        bn: "সহানুভূতিশীল, স্বজ্ঞাত এবং প্রিয়জনদের প্রতি সুরক্ষামূলক।"
+      }
+    };
+  }
+  if ((month === 7 && day >= 23) || (month === 8 && day <= 22)) {
+    return {
+      sign: "Leo", emoji: "♌",
+      personality: {
+        en: "Confident, charismatic, and loves to shine.",
+        es: "Seguro, carismático y le encanta brillar bajo el reflector.",
+        bn: "আত্মবিশ্বাসী, ক্যারিশম্যাটিক এবং লাইমলাইটে থাকতে পছন্দ করে।"
+      }
+    };
+  }
+  if ((month === 8 && day >= 23) || (month === 9 && day <= 22)) {
+    return {
+      sign: "Virgo", emoji: "♍",
+      personality: {
+        en: "Analytical, precise, and always ready to help.",
+        es: "Analítico, preciso y siempre listo para ayudar.",
+        bn: "বিশ্লেষণাত্মক, সুনির্দিষ্ট এবং সর্বদা সাহায্য করতে প্রস্তুত।"
+      }
+    };
+  }
+  if ((month === 9 && day >= 23) || (month === 10 && day <= 22)) {
+    return {
+      sign: "Libra", emoji: "♎",
+      personality: {
+        en: "Harmonious, diplomatic, and a lover of beauty.",
+        es: "Armonioso, diplomático y amante del arte y la belleza.",
+        bn: "সুরেলা, কূটনৈতিক এবং শিল্প ও সৌন্দর্যের প্রেমিক।"
+      }
+    };
+  }
+  if ((month === 10 && day >= 23) || (month === 11 && day <= 21)) {
+    return {
+      sign: "Scorpio", emoji: "♏",
+      personality: {
+        en: "Passionate, intense, and possesses magnetic charm.",
+        es: "Apasionado, intenso y poseedor de un encanto misterioso.",
+        bn: "আবেগী, তীব্র এবং রহস্যময় চৌম্বকীয় আকর্ষণের অধিকারী।"
+      }
+    };
+  }
+  if ((month === 11 && day >= 22) || (month === 12 && day <= 21)) {
+    return {
+      sign: "Sagittarius", emoji: "♐",
+      personality: {
+        en: "Adventurous, optimistic, and seeker of wisdom.",
+        es: "Aventurero, optimista y buscador de sabiduría.",
+        bn: "দুঃসাহসী, আশাবাদী এবং পরম জ্ঞানের সন্ধানকারী।"
+      }
+    };
+  }
+  if ((month === 12 && day >= 22) || (month === 1 && day <= 19)) {
+    return {
+      sign: "Capricorn", emoji: "♑",
+      personality: {
+        en: "Disciplined, ambitious, and climbs every mountain.",
+        es: "Disciplinado, ambicioso y escala montañas para triunfar.",
+        bn: "শৃঙ্খলিত, উচ্চাভিলাষী এবং সফল হতে প্রতিটি পর্বত জয় করে।"
+      }
+    };
+  }
+  if ((month === 1 && day >= 20) || (month === 2 && day <= 18)) {
+    return {
+      sign: "Aquarius", emoji: "♒",
+      personality: {
+        en: "Innovative, independent, and progressive.",
+        es: "Innovador, independiente y quiere mejorar el mundo.",
+        bn: "উদ্ভাবনী, স্বাধীন এবং প্রগতিশীল মনভাবাপন্ন।"
+      }
+    };
+  }
+  // Pisces (Feb 19 - Mar 20)
+  return {
+    sign: "Pisces", emoji: "♓",
+    personality: {
+      en: "Dreamy, artistic, and deeply empathetic.",
+      es: "Soñador, artístico y profundamente empático.",
+      bn: "স্বপ্নময়, শৈলিক এবং গভীরভাবে সহানুভূতিশীল।"
+    }
+  };
+}
+
+export function getChineseZodiac(year: number): ZodiacInfo {
+  const index = Math.abs(year - 1900) % 12;
+  const signs = [
+    { sign: "Rat", emoji: "🐀", personality: { en: "Clever, quick-witted, and highly resourceful.", es: "Inteligente, astuto y muy ingenioso.", bn: "চতুর, বুদ্ধিমান এবং অত্যন্ত সম্পদশালী।" } },
+    { sign: "Ox", emoji: "🐂", personality: { en: "Diligent, dependable, and strong-willed.", es: "Diligente, confiable y con gran fuerza de carácter.", bn: "পরিশ্রমী, নির্ভরযোগ্য এবং ইচ্ছাশক্তিসম্পন্ন।" } },
+    { sign: "Tiger", emoji: "🐅", personality: { en: "Brave, competitive, and charismatic.", es: "Valiente, competitivo y con gran magnetismo.", bn: "সাহসী, প্রতিযোগী এবং ক্যারিশম্যাটিক।" } },
+    { sign: "Rabbit", emoji: "🐇", personality: { en: "Gentle, elegant, and avoids unnecessary conflicts.", es: "Gentil, reservado y maneja con elegancia los desafíos.", bn: "নম্র, শান্ত এবং অপ্রয়োজনীয় দ্বন্দ্ব এড়িয়ে চলে।" } },
+    { sign: "Dragon", emoji: "🐉", personality: { en: "Powerful, confident, and full of vital energy.", es: "Poderoso, carismático y lleno de gran vitalidad.", bn: "শক্তিশালী, আত্মবিশ্বাসী এবং প্রাণশক্তিতে ভরপুর।" } },
+    { sign: "Snake", emoji: "🐍", personality: { en: "Enigmatic, intelligent, and highly intuitive.", es: "Sabio, enigmático y confía en su profunda intuición.", bn: "রহস্যময়, বুদ্ধিমান এবং অত্যন্ত অন্তর্দৃষ্টিসম্পন্ন।" } },
+    { sign: "Horse", emoji: "🐎", personality: { en: "Free-spirited, energetic, and highly independent.", es: "De espíritu libre, activo y ama su independencia.", bn: "স্বাধীনচেতা, উদ্যমী এবং অত্যন্ত স্বাধীন।" } },
+    { sign: "Goat", emoji: "🐐", personality: { en: "Creative, gentle, and deeply compassionate.", es: "Amable, creativo y sumamente empático con los demás.", bn: "সৃজনশীল, নম্র এবং গভীরভাবে সহানুভূতিশীল।" } },
+    { sign: "Monkey", emoji: "🐒", personality: { en: "Sharp, playful, and incredibly quick-witted.", es: "Juguetón, inteligente y resuelve acertijos con astucia.", bn: "তীক্ষ্ণ, চতুর এবং অবিশ্বাস্য বুদ্ধিমান।" } },
+    { sign: "Rooster", emoji: "🐓", personality: { en: "Observant, diligent, and strictly reliable.", es: "Observador, trabajador y profundamente leal.", bn: "সতর্ক, পরিশ্রমী এবং কঠোরভাবে নির্ভরযোগ্য।" } },
+    { sign: "Dog", emoji: "🐕", personality: { en: "Loyal, honest, and fiercely protective of justice.", es: "Leal, honesto y defensor valiente de la justicia.", bn: "বিশ্বস্ত, সৎ এবং ন্যায়বিচারের পক্ষে অত্যন্ত সুরক্ষামূলক।" } },
+    { sign: "Pig", emoji: "🐖", personality: { en: "Generous, compassionate, and loves peace.", es: "Compasivo, generoso y amante de la paz y armonía.", bn: "উদার, সহানুভূতিশীল এবং শান্তি পছন্দ করে।" } }
+  ];
+  return signs[index];
+}

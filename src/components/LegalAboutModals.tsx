@@ -5,8 +5,8 @@ import { Shield, FileText, Users, Heart, Sparkles, AlertCircle, Terminal, HelpCi
 interface LegalAboutModalsProps {
   isOpen: boolean;
   onClose: () => void;
-  activeTab: 'privacy' | 'terms' | 'about';
-  setActiveTab: (tab: 'privacy' | 'terms' | 'about') => void;
+  activeTab: 'privacy' | 'terms' | 'about' | 'growth';
+  setActiveTab: (tab: 'privacy' | 'terms' | 'about' | 'growth') => void;
   lang: 'en' | 'es' | 'bn' | 'hi' | 'ja' | string;
 }
 
@@ -192,6 +192,7 @@ export default function LegalAboutModals({
   };
 
   const data = getContent();
+  const isDark = false;
 
   return (
     <AnimatePresence>
@@ -211,39 +212,47 @@ export default function LegalAboutModals({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-2xl overflow-hidden rounded-[32px] bg-white border border-slate-100 shadow-2xl z-10 flex flex-col max-h-[85vh]"
+            className={`relative w-full max-w-2xl overflow-hidden rounded-[32px] border shadow-2xl z-10 flex flex-col max-h-[85vh] ${
+              isDark 
+                ? 'glass-container-liquid-dark text-slate-100 border-zinc-800' 
+                : 'bg-white border-slate-100 text-slate-800'
+            }`}
           >
             {/* Header tab navigation */}
-            <div className="bg-slate-50 border-b border-slate-100 p-5 sm:p-6 pb-2">
+            <div className={`border-b p-5 sm:p-6 pb-2 ${isDark ? 'bg-zinc-900/30 border-zinc-800/40' : 'bg-slate-50 border-slate-100'}`}>
               <div className="flex items-center justify-between mb-4">
                 <div className="space-y-0.5">
-                  <h2 className="font-display font-black text-slate-900 text-lg sm:text-xl flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-indigo-600" />
+                  <h2 className={`font-display font-black text-lg sm:text-xl flex items-center gap-2 ${isDark ? 'text-zinc-100' : 'text-slate-900'}`}>
+                    <Sparkles className="w-5 h-5 text-indigo-600 animate-pulse" />
                     <span>
                       {lang === 'bn' ? 'তথ্য ও নীতি কেন্দ্র' : lang === 'es' ? 'Centro de Información y Políticas' : 'Information & Policies'}
                     </span>
                   </h2>
-                  <p className="text-[10px] text-slate-500 font-bold font-mono uppercase tracking-widest">
+                  <p className={`text-[10px] font-bold font-mono uppercase tracking-widest ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
                     Precision Chronological Hub
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="w-8 h-8 rounded-full bg-white hover:bg-slate-200 border border-slate-200/60 flex items-center justify-center font-bold text-slate-500 hover:text-slate-700 transition-all cursor-pointer shadow-sm"
+                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold transition-all cursor-pointer shadow-sm ${
+                    isDark 
+                      ? 'bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-400' 
+                      : 'bg-white hover:bg-slate-200 border border-slate-200/60 text-slate-505 hover:text-slate-800'
+                  }`}
                 >
                   ✕
                 </button>
               </div>
 
               {/* Navigation Tabs */}
-              <div className="flex gap-2 p-1 bg-slate-100/80 rounded-2xl border border-slate-200/50">
+              <div className={`flex gap-2 p-1 rounded-2xl border ${isDark ? 'bg-zinc-950/40 border-zinc-800/40' : 'bg-slate-100/80 border-slate-200/50'}`}>
                 <button
                   onClick={() => setActiveTab('privacy')}
                   className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl font-bold text-xs transition-all cursor-pointer ${
                     activeTab === 'privacy'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-505 hover:text-slate-800'
+                      ? isDark ? 'bg-zinc-800 text-white shadow-sm' : 'bg-white text-slate-900 shadow-sm'
+                      : isDark ? 'text-zinc-400 hover:text-zinc-200' : 'text-slate-505 hover:text-slate-800'
                   }`}
                 >
                   <Shield className={`w-3.5 h-3.5 ${activeTab === 'privacy' ? 'text-indigo-600' : 'text-slate-400'}`} />
@@ -254,8 +263,8 @@ export default function LegalAboutModals({
                   onClick={() => setActiveTab('terms')}
                   className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl font-bold text-xs transition-all cursor-pointer ${
                     activeTab === 'terms'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-505 hover:text-slate-800'
+                      ? isDark ? 'bg-zinc-800 text-white shadow-sm' : 'bg-white text-slate-900 shadow-sm'
+                      : isDark ? 'text-zinc-400 hover:text-zinc-200' : 'text-slate-505 hover:text-slate-800'
                   }`}
                 >
                   <FileText className={`w-3.5 h-3.5 ${activeTab === 'terms' ? 'text-indigo-600' : 'text-slate-400'}`} />
@@ -266,12 +275,24 @@ export default function LegalAboutModals({
                   onClick={() => setActiveTab('about')}
                   className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl font-bold text-xs transition-all cursor-pointer ${
                     activeTab === 'about'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-505 hover:text-slate-800'
+                      ? isDark ? 'bg-zinc-800 text-white shadow-sm' : 'bg-white text-slate-900 shadow-sm'
+                      : isDark ? 'text-zinc-400 hover:text-zinc-200' : 'text-slate-505 hover:text-slate-800'
                   }`}
                 >
                   <Users className={`w-3.5 h-3.5 ${activeTab === 'about' ? 'text-indigo-600' : 'text-slate-400'}`} />
                   <span>{lang === 'bn' ? 'আমাদের সম্পর্কে' : lang === 'es' ? 'Nosotros' : 'About Us'}</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('growth')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeTab === 'growth'
+                      ? isDark ? 'bg-zinc-800 text-white shadow-sm' : 'bg-white text-slate-900 shadow-sm'
+                      : isDark ? 'text-zinc-400 hover:text-zinc-200' : 'text-slate-505 hover:text-slate-800'
+                  }`}
+                >
+                  <Sparkles className={`w-3.5 h-3.5 ${activeTab === 'growth' ? 'text-indigo-600' : 'text-slate-400'}`} />
+                  <span>{lang === 'bn' ? 'ভিজিটর গ্রোথ' : lang === 'es' ? 'Crecimiento' : 'Visitor Growth'}</span>
                 </button>
               </div>
             </div>
@@ -382,14 +403,110 @@ export default function LegalAboutModals({
                 </div>
               )}
 
+              {/* Visitor Growth Tips Tab Content */}
+              {activeTab === 'growth' && (
+                <div className="space-y-6">
+                  <div className="text-center sm:text-left space-y-1 pb-4 border-b border-slate-100">
+                    <h3 className="font-display font-black text-slate-900 text-xl sm:text-2xl">
+                      {lang === 'bn' ? '🚀 ওয়েবসাইট গ্রোথ ও ভিজিটর বৃদ্ধির কৌশল' : '🚀 Creator Insights & Growth Center'}
+                    </h3>
+                    <p className="text-xs text-indigo-600 font-bold font-mono">
+                      {lang === 'bn' ? 'সাহেব চৌধুরীর জন্য কাস্টমাইজড প্রফেশনাল গাইড' : 'Bespoke Guide for Sahev Chowdhury to scale traffic & maximize AdSense'}
+                    </p>
+                  </div>
+
+                  <div className="space-y-5 text-xs sm:text-sm leading-relaxed text-slate-650 font-medium">
+                    <p className="bg-amber-50/50 border border-amber-200/50 rounded-2xl p-4 sm:p-5 text-slate-800 font-semibold flex gap-3 text-left">
+                      <span className="text-xl">💡</span>
+                      <span>
+                        {lang === 'bn'
+                          ? 'আপনার প্রিসিশন বয়স ক্যালকুলেটরটিতে অলরেডি অসাধারণ ইউজার ইন্টারফেস এবং দারুণ ফিচার আছে। আরও বেশি ভিজিটর আকর্ষণ করতে এবং অ্যাডসেন্স থেকে ভালো আয় করতে নিচের সুপার-ফিচারগুলো অ্যাড করতে পারেন:'
+                          : 'Your Precision Age Calculator already possesses a state-of-the-art UI and incredible precision. To scale your traffic to thousands of daily users and maximize AdSense earnings, consider implementing the following highly viral features:'}
+                      </span>
+                    </p>
+
+                    <div className="space-y-4">
+                      {/* Tip 1 */}
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 space-y-2 text-left">
+                        <h4 className="font-display font-black text-slate-900 text-sm sm:text-base flex items-center gap-2">
+                          <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/10 text-indigo-600 font-mono text-xs font-bold">1</span>
+                          {lang === 'bn' ? '১. বৈজ্ঞানিক জ্যোতিষশাস্ত্র ও লাইফ পাথ ক্যালকুলেটর (Numerology)' : '1. Numerology & Life Path Numbers'}
+                        </h4>
+                        <p className="text-slate-600 text-xs pl-8 font-medium leading-relaxed">
+                          {lang === 'bn'
+                            ? 'জন্ম তারিখ থেকে মানুষের "লাইফ পাথ নাম্বার" বা "ভাগ্যাঙ্ক" গণনা করার একটি ছোট সেকশন তৈরি করুন। জ্যোতিষশাস্ত্র ও নিউমারোলজি নিয়ে মানুষের প্রচণ্ড কৌতূহল থাকে। সোশ্যাল মিডিয়ায় এই নাম্বারগুলো শেয়ার করার সুযোগ দিলে সাইটের ট্রাফিক দ্বিগুণ হবে।'
+                            : 'Integrate a localized algorithm that computes the visitor’s Life Path Number (1-9, 11, 22) based on their birth date. Numerology has massive viral sharing appeal across Facebook, Instagram, and WhatsApp.'}
+                        </p>
+                      </div>
+
+                      {/* Tip 2 */}
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 space-y-2 text-left">
+                        <h4 className="font-display font-black text-slate-900 text-sm sm:text-base flex items-center gap-2">
+                          <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-pink-500/10 text-pink-600 font-mono text-xs font-bold">2</span>
+                          {lang === 'bn' ? '২. ওই বিশেষ বছরের ও দিনের ঐতিহাসিক ঘটনা (Birth Trivia)' : '2. Historical Birth Trivia'}
+                        </h4>
+                        <p className="text-slate-600 text-xs pl-8 font-medium leading-relaxed">
+                          {lang === 'bn'
+                            ? 'ব্যবহারকারী যেদিন জন্মগ্রহণ করেছিলেন, সে বছর বা দিনে বিশ্বের প্রধান প্রধান কী কী ঐতিহাসিক ঘটনা ঘটেছিল বা কোন কোন কালজয়ী সিনেমা/গান মুক্তি পেয়েছিল তা দেখান। মানুষ অতীতে ফিরে যেতে ভালোবাসে, যা সাইটে ভিজিটরদের অবস্থানের সময় বাড়াবে।'
+                            : 'Display notable world events, hit movies, or Billboard #1 songs from the exact year and day they were born. Nostalgia is an incredibly powerful psychological trigger that boosts session duration.'}
+                        </p>
+                      </div>
+
+                      {/* Tip 3 */}
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 space-y-2 text-left">
+                        <h4 className="font-display font-black text-slate-900 text-sm sm:text-base flex items-center gap-2">
+                          <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-purple-500/10 text-purple-600 font-mono text-xs font-bold">3</span>
+                          {lang === 'bn' ? '৩. সোশ্যাল মিডিয়ার জন্য ভাইরাল মেডেল বা ব্যাজ (Viral Badges)' : '3. Viral Milestone Sharing Cards'}
+                        </h4>
+                        <p className="text-slate-600 text-xs pl-8 font-medium leading-relaxed">
+                          {lang === 'bn'
+                            ? 'ব্যবহারকারীরা যাতে তাদের বিশেষ মাইলফলক যেমন "আমি আজ ১০,০০০ দিন পূর্ণ করলাম!" বা "আমার হার্টবিট ১০০ কোটি বার স্পন্দিত হয়েছে!" - এই লেখা সহ একটি চমৎকার ভিজ্যুয়াল মেডেল কার্ড এক ক্লিকে ফেসবুক, হোয়াটসঅ্যাপ বা টুইটারে শেয়ার করতে পারেন।'
+                            : 'Allow visitors to download a beautifully styled visual card or shareable "Badge" commemorating milestones (e.g., "I just completed 10,000 days on Earth!"). Shareable user achievements drive massive organic word-of-mouth referral traffic.'}
+                        </p>
+                      </div>
+
+                      {/* Tip 4 */}
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 space-y-2 text-left">
+                        <h4 className="font-display font-black text-slate-900 text-sm sm:text-base flex items-center gap-2">
+                          <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-600 font-mono text-xs font-bold">4</span>
+                          {lang === 'bn' ? '৪. ভবিষ্যৎ টাইম ক্যাপসুল ইমেল (Future Time Capsule)' : '4. Future Milestone Time Capsule'}
+                        </h4>
+                        <p className="text-slate-600 text-xs pl-8 font-medium leading-relaxed">
+                          {lang === 'bn'
+                            ? 'এমন একটি ফিচার যোগ করুন যেখানে ইউজাররা নিজের ভবিষ্যতের উদ্দেশ্যে (যেমন ৩ বছর বা ৫ বছর পরের জন্মদিনে) একটি চিঠি লিখে রাখতে পারবেন। আপনার সাইট স্বয়ংক্রিয়ভাবে ইমেইলের মাধ্যমে নির্দিষ্ট দিনে চিঠিটি পৌঁছে দেবে। এটি ব্যবহারকারীদের আবার ফিরিয়ে আনবে।'
+                            : 'Allow users to write a letter to their future self, to be scheduled and automatically emailed to them on a major future milestone birthday (e.g., 30th or 40th birthday). This guarantees repeat, loyal long-term visits.'}
+                        </p>
+                      </div>
+
+                      {/* Tip 5 */}
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 space-y-2 text-left">
+                        <h4 className="font-display font-black text-slate-900 text-sm sm:text-base flex items-center gap-2">
+                          <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-amber-500/10 text-amber-600 font-mono text-xs font-bold">5</span>
+                          {lang === 'bn' ? '৫. মহাজাগতিক ও মহাকাশ বয়স ক্যালকুলেটর (Space Age)' : '5. Astro-Cosmic Space Age'}
+                        </h4>
+                        <p className="text-slate-600 text-xs pl-8 font-medium leading-relaxed">
+                          {lang === 'bn'
+                            ? 'মঙ্গল, বৃহস্পতি বা শুক্র গ্রহে আপনার বয়স কত? মঙ্গলের এক বছর ৬৮৭ দিন হওয়ার কারণে সেখানে আপনার বয়স কত কম হবে তা হিসাব করার কৌতূহলোদ্দীপক মহাজাগতিক ফিচার যোগ করুন। এটি ছাত্র-ছাত্রী ও বিজ্ঞানপ্রেমীদের ব্যাপকভাবে আকৃষ্ট করবে।'
+                            : 'Calculate how old the user is on other planets (e.g., Mars, Venus, or Jupiter) based on planetary orbital periods. This educational, high-engagement widget is highly appealing to students and science enthusiasts.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
             </div>
 
             {/* Footer containing developers tag */}
-            <div className="bg-slate-50 border-t border-slate-100 p-4 text-center text-[10px] text-slate-400 font-mono font-bold flex items-center justify-center gap-1.5">
+            <div className={`border-t p-4 text-center text-[10px] font-mono font-bold flex items-center justify-center gap-1.5 ${
+              isDark 
+                ? 'bg-zinc-900/30 border-zinc-800/50 text-zinc-500' 
+                : 'bg-slate-50 border-slate-100 text-slate-400'
+            }`}>
               <span>Secure sandbox environment</span>
               <span>•</span>
-              <span className="flex items-center gap-0.5 text-indigo-600 font-sans">
-                <Heart className="w-3 h-3 text-rose-500 fill-rose-500" />
+              <span className={`flex items-center gap-0.5 font-sans ${isDark ? 'text-purple-400' : 'text-indigo-600'}`}>
+                <Heart className="w-3 h-3 text-rose-500 fill-rose-500 animate-pulse" />
                 Sahev Chowdhury
               </span>
             </div>
